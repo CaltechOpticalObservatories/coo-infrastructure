@@ -1,0 +1,121 @@
+---
+- name: Wipe and Reinstall Ubuntu, Install Tools
+  hosts: "{{ target_hosts }}"  # Dynamically set hosts using extra-vars
+  become: yes
+  vars:
+    # Disk and Partition Information
+    disk: "/dev/sda"                  # Customize this if needed (e.g., /dev/nvme0n1)
+    partition: "/dev/sda1"             # Partition for formatting
+    filesystem: "ext4"                 # Filesystem type (ext4, xfs, etc.)
+
+    # Package list to install
+    packages_to_install:
+      - vim
+      - git
+      - curl
+      - htop
+      - net-tools
+      - unzip
+      - build-essential
+      - docker.io
+      - nginx
+
+    # Ubuntu installation directory or method
+    backup_dir: "/backup"              # Directory for backup and restore (if applicable)
+    reboot_delay: 60                   # Delay before checking for SSH connection after reboot
+
+  tasks:
+
+    # Step 1: Wipe the system - Be cautious with these steps
+    - name: Unmount all filesystems
+      mount:
+        path: "{{ item }}"
+        state: unmounted
+      loop:
+        - /mnt
+        - /home
+        - /var
+        - /opt
+        - /tmp
+      ignore_errors: true  # Ignore errors if already unmounted
+
+    - name: Remove all files in directories
+      file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - /mnt
+        - /home
+        - /var
+        - /opt
+        - /tmp
+      ignore_errors: true  # Ignore errors if directories are empty or not found
+
+    - name: Delete partition table and wipe the disk (Be careful!)
+      command:
+        cmd: "parted {{ disk }} mklabel gpt"  # Delete all partitions and create a new partition table (GPT format)
+      ignore_errors: true  # Wipe disk, use with caution!
+
+    - name: Reformat the disk
+      command:
+        cmd: "mkfs.{{ filesystem }} {{ partition }}"  # Reformat the partition with the specified filesystem
+      ignore_errors: true  # This erases everything on the partition
+
+    # Step 2: Install Ubuntu 24
+    # This step cannot be fully done through Ansible alone because Ubuntu must be installed via boot media.
+    # Assume Ubuntu 24 is pre-installed on the system after wiping.
+
+    - name: Wait for the system to reboot and SSH back up
+      wait_for_connection:
+        delay: "{{ reboot_delay }}"  # Wait before checking SSH connection
+        timeout: 300  # Timeout for waiting for SSH to become available
+
+    # Step 3: Update and Upgrade the system
+    - name: Update package list and upgrade Ubuntu system
+      apt:
+        update_cache: yes
+        upgrade: dist
+        cache_valid_time: 3600  # 1 hour cache validity
+
+    # Step 4: Install necessary packages/tools
+    - name: Install necessary packages and tools
+      apt:
+        name: "{{ item }}"
+        state: present
+      loop: "{{ packages_to_install }}"
+      when: ansible_facts['os_family'] == 'Debian'  # Ensure it only runs on Ubuntu/Debian-based systems
+
+    # Step 5: Configure Docker (example)
+    - name: Ensure Docker is started and enabled
+      service:
+        name: docker
+        state: started
+        enabled: yes
+
+    # Optional: Add user to Docker group (if Docker is installed)
+    - name: Add user to Docker group
+      user:
+        name: "{{ ansible_user }}"
+        group: docker
+        append: yes
+
+    # Optional: Restore data from backup (if backup directory is provided)
+    - name: Restore data from backup
+      synchronize:
+        src: "{{ backup_dir }}"
+        dest: "/"
+        recursive: yes
+        compress: yes
+      when: backup_dir is defined
+
+    # Optional: Restore specific configuration files (example for /etc directory)
+    - name: Restore configuration files from backup
+      copy:
+        src: "{{ backup_dir }}/etc/"
+        dest: "/etc/"
+        owner: root
+        group: root
+        mode: 0644
+        recurse: yes
+      when: backup_dir is defined
+
