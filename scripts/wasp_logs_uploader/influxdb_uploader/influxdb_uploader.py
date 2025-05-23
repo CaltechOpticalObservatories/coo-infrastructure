@@ -28,6 +28,8 @@ INFLUXDB_BUCKET = "WaspLogs"
 CSV_DIRECTORY = "../logs_from_wasp/"  # Directory containing CSV files
 MEASUREMENT_NAME = "sensor_logs"  # InfluxDB measurement name
 LAST_TIMESTAMP_FILE = "last_uploaded_timestamp.txt"  # File to store the last uploaded timestamp
+
+
 # ========================================
 
 
@@ -114,13 +116,17 @@ def upload_csv_to_influx():
     client.close()
 
 
-# Schedule job to run hourly
-schedule.every().hour.do(upload_csv_to_influx)
+def run_uploader_scheduler():
+    """
+    Sets up the schedule to run the uploader hourly and keeps the process alive.
+    """
+    schedule.every().hour.do(upload_csv_to_influx)
+    print("Uploader started. Waiting for the next hourly run.")
+    upload_csv_to_influx()  # Run once immediately on start
+    while True:
+        schedule.run_pending()
+        time.sleep(60)
 
-print("Uploader started. Waiting for the next hourly run.")
-upload_csv_to_influx()  # Run once immediately on start
 
-# Infinite loop to keep the scheduler alive
-while True:
-    schedule.run_pending()
-    time.sleep(60)
+if __name__ == "__main__":
+    run_uploader_scheduler()
