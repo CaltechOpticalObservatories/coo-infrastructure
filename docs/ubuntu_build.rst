@@ -193,7 +193,7 @@ Create and activate a virtual environment:
 
    # Inside /home/employee
    python3.12 -m venv fei-venv
-   source ~/fei-venv/bin/activate
+   source ~/local-venv/bin/activate
    pip install numpy matplotlib pipython
 
 
