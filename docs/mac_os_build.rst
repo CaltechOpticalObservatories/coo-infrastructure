@@ -27,17 +27,12 @@ If you need to create new users (requires admin privileges):
 .. code-block:: bash
 
    # Create users
-   sudo sysadminctl -addUser employee
-   sudo sysadminctl -addUser poder
+   sysadminctl -addUser employee
+   sysadminctl -addUser poder
 
    # Add users to admin group
-   sudo dseditgroup -o edit -a employee -t user admin
-   sudo dseditgroup -o edit -a poder -t user admin
-
-.. note::
-
-   macOS does not use ``/etc/sudoers`` or ``sudo`` groups the same way as Linux.
-   Admin users automatically have ``sudo`` privileges.
+   dseditgroup -o edit -a employee -t user admin
+   dseditgroup -o edit -a poder -t user admin
 
 Set Hostname
 ------------
@@ -46,9 +41,9 @@ Change your Mac’s hostname to ``mercury``:
 
 .. code-block:: bash
 
-   sudo scutil --set HostName mercury
-   sudo scutil --set LocalHostName mercury
-   sudo scutil --set ComputerName mercury
+   scutil --set HostName mercury
+   scutil --set LocalHostName mercury
+   scutil --set ComputerName mercury
    dscacheutil -flushcache
 
 Verify hostname:
